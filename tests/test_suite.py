@@ -34,7 +34,7 @@ cases:
   - name: server error is reported
     tool: fail
     args: {message: nope}
-    expect: {error: true, text_contains: nope}
+    expect: {error: true, text_contains: "Error executing tool fail"}
   - name: wrong expectation fails
     tool: add
     args: {a: 1, b: 1}

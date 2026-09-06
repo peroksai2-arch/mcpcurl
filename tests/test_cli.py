@@ -43,7 +43,8 @@ def test_call_parses_json_values_and_validates(server_cmd: str) -> None:
 def test_call_server_error_exits_1(server_cmd: str) -> None:
     result = runner.invoke(app, ["call", server_cmd, "fail", "-j", '{"message": "kaput"}'])
     assert result.exit_code == 1
-    assert "kaput" in result.output
+    # mcp 1.x includes the exception message, 2.x only names the tool.
+    assert "Error executing tool fail" in result.output
 
 
 def test_read_and_prompt(server_cmd: str) -> None:

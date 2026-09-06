@@ -38,8 +38,8 @@ from typing import Any
 import yaml
 from jsonschema import Draft202012Validator, ValidationError, validate
 from jsonschema.exceptions import SchemaError
-from pydantic import AnyUrl
 
+from .compat import attr, resource_uri
 from .connect import Connection
 from .inventory import Inventory, gather
 from .render import result_text
@@ -96,7 +96,7 @@ def smoke_checks(inv: Inventory) -> list[CaseResult]:
     )
     for t in inv.tools:
         try:
-            Draft202012Validator.check_schema(t.inputSchema or {})
+            Draft202012Validator.check_schema(attr(t, "input_schema") or {})
             ok, msg = True, ""
         except SchemaError as exc:
             ok, msg = False, exc.message
@@ -172,11 +172,11 @@ async def _run_case(
             if tool is None:
                 return CaseResult(label, False, f"tool {name!r} not advertised by server")
             if validate_args:
-                coerce_args(tool.inputSchema, args)
+                coerce_args(attr(tool, "input_schema"), args)
             result = await conn.session.call_tool(name, args)
-            is_error = bool(result.isError)
+            is_error = bool(attr(result, "is_error"))
             text = result_text(result)
-            value = result.structuredContent
+            value = attr(result, "structured_content")
             if isinstance(value, dict) and set(value) == {"result"}:
                 value = value["result"]
             if value is None:
@@ -184,7 +184,7 @@ async def _run_case(
         elif "resource" in case:
             uri = case["resource"]
             label = case.get("name") or f"read {uri}"
-            res = await conn.session.read_resource(AnyUrl(uri))
+            res = await conn.session.read_resource(resource_uri(uri))
             text = "\n".join(c.text for c in res.contents if getattr(c, "text", None) is not None)
             value = _first_json(text)
         else:

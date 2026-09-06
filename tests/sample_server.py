@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import asyncio
 
-from mcp.server.fastmcp import FastMCP
+try:  # mcp 2.x
+    from mcp.server.mcpserver import MCPServer as FastMCP
+except ImportError:  # mcp 1.x
+    from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("sample", instructions="A toy server with one of everything.")
 

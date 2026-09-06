@@ -9,10 +9,10 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-from pydantic import AnyUrl
 from rich.console import Console
 from rich.table import Table
 
+from .compat import attr, resource_uri
 from .connect import Target, connect, parse_kv
 from .inventory import gather
 from .render import print_inventory, result_to_plain, to_markdown
@@ -148,7 +148,7 @@ def call(
                     )
                     return 2
                 try:
-                    coerce_args(spec.inputSchema, args)
+                    coerce_args(attr(spec, "input_schema"), args)
                 except ValueError as exc:
                     err.print(f"[red]invalid arguments:[/] {exc}")
                     return 2
@@ -183,14 +183,15 @@ def read(
 
     async def go() -> None:
         async with connect(_target(target, transport, header, env, cwd), timeout=timeout) as c:
-            res = await c.session.read_resource(AnyUrl(uri))
+            res = await c.session.read_resource(resource_uri(uri))
         for content in res.contents:
             text = getattr(content, "text", None)
             if text is not None:
                 console.print(text, markup=False, highlight=False)
             else:
                 blob = getattr(content, "blob", "")
-                console.print(f"[dim]<{content.mimeType or 'binary'} {len(blob)} base64 chars>[/]")
+                mime = attr(content, "mime_type") or "binary"
+                console.print(f"[dim]<{mime} {len(blob)} base64 chars>[/]")
 
     _run(go())
 

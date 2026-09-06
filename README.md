@@ -171,7 +171,9 @@ ruff check . && pytest
 ```
 
 Tests spawn `tests/sample_server.py` over stdio, so they exercise the real
-transport on Linux and Windows.
+transport on Linux and Windows. CI runs the suite against both the 1.x and
+2.x generations of the `mcp` SDK; a small shim in `compat.py` covers the
+attribute renames between them.
 
 ## License
 

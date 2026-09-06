@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from mcpcurl import Target, connect, gather
+from mcpcurl.compat import attr
 from mcpcurl.render import schema_summary, to_markdown
 
 
@@ -12,12 +13,12 @@ async def test_gather_lists_everything(server_cmd: str) -> None:
     assert inv.instructions and "toy server" in inv.instructions
     assert {t.name for t in inv.tools} == {"add", "echo", "fail", "slow", "undocumented"}
     assert [str(r.uri) for r in inv.resources] == ["info://about"]
-    assert [r.uriTemplate for r in inv.resource_templates] == ["greeting://{name}"]
+    assert [attr(r, "uri_template") for r in inv.resource_templates] == ["greeting://{name}"]
     assert [p.name for p in inv.prompts] == ["summarize"]
 
     add = inv.tool("add")
     assert add is not None
-    assert add.inputSchema["required"] == ["a", "b"]
+    assert attr(add, "input_schema")["required"] == ["a", "b"]
 
 
 def test_target_transport_detection() -> None:

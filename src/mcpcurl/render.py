@@ -9,6 +9,7 @@ from mcp.types import CallToolResult, Tool
 from rich.console import Console
 from rich.table import Table
 
+from .compat import attr
 from .inventory import Inventory
 
 
@@ -47,7 +48,7 @@ def print_inventory(inv: Inventory, console: Console, *, verbose: bool = False) 
             desc = (t.description or "").strip()
             if not verbose:
                 desc = desc.splitlines()[0] if desc else ""
-            table.add_row(t.name, schema_summary(t.inputSchema), desc)
+            table.add_row(t.name, schema_summary(attr(t, "input_schema")), desc)
         console.print(table)
     else:
         console.print("[yellow]no tools[/]")
@@ -60,9 +61,9 @@ def print_inventory(inv: Inventory, console: Console, *, verbose: bool = False) 
         table.add_column("name")
         table.add_column("mime")
         for r in inv.resources:
-            table.add_row(str(r.uri), r.name or "", r.mimeType or "")
+            table.add_row(str(r.uri), r.name or "", attr(r, "mime_type") or "")
         for r in inv.resource_templates:
-            table.add_row(r.uriTemplate, r.name or "", r.mimeType or "")
+            table.add_row(attr(r, "uri_template"), r.name or "", attr(r, "mime_type") or "")
         console.print(table)
 
     if inv.prompts:
@@ -88,9 +89,10 @@ def result_to_plain(result: CallToolResult) -> dict[str, Any]:
                 content.append(text)
         else:
             content.append(block.model_dump(mode="json", exclude_none=True, by_alias=True))
-    out: dict[str, Any] = {"is_error": bool(result.isError), "content": content}
-    if result.structuredContent is not None:
-        out["structured"] = result.structuredContent
+    out: dict[str, Any] = {"is_error": bool(attr(result, "is_error")), "content": content}
+    structured = attr(result, "structured_content")
+    if structured is not None:
+        out["structured"] = structured
     return out
 
 
@@ -118,12 +120,12 @@ def to_markdown(inv: Inventory) -> str:
         ]
         for r in inv.resources:
             lines.append(
-                f"| `{r.uri}` | {r.name or ''} | {r.mimeType or ''} | "
+                f"| `{r.uri}` | {r.name or ''} | {attr(r, 'mime_type') or ''} | "
                 f"{(r.description or '').strip()} |"
             )
         for r in inv.resource_templates:
             lines.append(
-                f"| `{r.uriTemplate}` | {r.name or ''} | {r.mimeType or ''} | "
+                f"| `{attr(r, 'uri_template')}` | {r.name or ''} | {attr(r, 'mime_type') or ''} | "
                 f"{(r.description or '').strip()} |"
             )
     if inv.prompts:
@@ -147,7 +149,7 @@ def _tool_markdown(t: Tool) -> list[str]:
     lines = [f"### `{t.name}`"]
     if t.description:
         lines += ["", t.description.strip()]
-    schema = t.inputSchema or {}
+    schema = attr(t, "input_schema") or {}
     props: dict[str, Any] = schema.get("properties") or {}
     required = set(schema.get("required") or [])
     if props:

@@ -7,6 +7,7 @@ from typing import Any
 
 from mcp.types import Prompt, Resource, ResourceTemplate, Tool
 
+from .compat import attr, page_params
 from .connect import Connection
 
 
@@ -62,12 +63,13 @@ async def gather(conn: Connection) -> Inventory:
     session = conn.session
     caps = init.capabilities
 
+    info = attr(init, "server_info")
     inv = Inventory(
-        server_name=init.serverInfo.name,
-        server_version=init.serverInfo.version,
-        protocol_version=str(init.protocolVersion),
+        server_name=info.name,
+        server_version=info.version,
+        protocol_version=str(attr(init, "protocol_version")),
         instructions=init.instructions,
-        capabilities=caps.model_dump(exclude_none=True),
+        capabilities=caps.model_dump(mode="json", exclude_none=True),
     )
 
     if caps.tools is not None:
@@ -76,7 +78,7 @@ async def gather(conn: Connection) -> Inventory:
         inv.resources = await _paginate(session.list_resources, "resources")
         try:
             inv.resource_templates = await _paginate(
-                session.list_resource_templates, "resourceTemplates"
+                session.list_resource_templates, "resource_templates"
             )
         except Exception:  # noqa: BLE001 - optional in older servers
             inv.resource_templates = []
@@ -85,12 +87,12 @@ async def gather(conn: Connection) -> Inventory:
     return inv
 
 
-async def _paginate(method: Any, attr: str) -> list[Any]:
+async def _paginate(method: Any, field: str) -> list[Any]:
     items: list[Any] = []
     cursor: str | None = None
     while True:
-        result = await method(cursor) if cursor else await method()
-        items.extend(getattr(result, attr))
-        cursor = result.nextCursor
+        result = await method(**page_params(cursor))
+        items.extend(attr(result, field))
+        cursor = attr(result, "next_cursor")
         if not cursor:
             return items

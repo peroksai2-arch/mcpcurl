@@ -12,13 +12,21 @@ import shlex
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import StdioServerParameters, stdio_client
-from mcp.client.streamable_http import streamablehttp_client
 from mcp.types import InitializeResult
+
+try:  # mcp >= 1.28 renamed the transport and takes an httpx client instead of kwargs
+    from mcp.client.streamable_http import streamable_http_client as _streamable_http
+
+    _STREAMABLE_TAKES_CLIENT = True
+except ImportError:  # pragma: no cover - exercised on older SDKs in CI
+    from mcp.client.streamable_http import streamablehttp_client as _streamable_http
+
+    _STREAMABLE_TAKES_CLIENT = False
 
 Transport = Literal["auto", "stdio", "http", "sse"]
 
@@ -96,11 +104,7 @@ async def connect(target: Target, *, timeout: float = 30.0) -> AsyncIterator[Con
             yield Connection(session, await session.initialize())
     elif transport == "http":
         async with (
-            streamablehttp_client(target.raw, headers=target.headers or None, timeout=timeout) as (
-                read,
-                write,
-                _,
-            ),
+            _open_streamable_http(target, timeout) as (read, write),
             ClientSession(read, write) as session,
         ):
             yield Connection(session, await session.initialize())
@@ -113,3 +117,25 @@ async def connect(target: Target, *, timeout: float = 30.0) -> AsyncIterator[Con
             ClientSession(read, write) as session,
         ):
             yield Connection(session, await session.initialize())
+
+
+@asynccontextmanager
+async def _open_streamable_http(target: Target, timeout: float) -> AsyncIterator[tuple[Any, Any]]:
+    """Open a Streamable HTTP transport on either SDK generation."""
+    if _STREAMABLE_TAKES_CLIENT:
+        import httpx
+
+        async with (
+            httpx.AsyncClient(
+                headers=target.headers or None,
+                timeout=httpx.Timeout(timeout, read=300),
+                follow_redirects=True,
+            ) as client,
+            _streamable_http(target.raw, http_client=client) as (read, write, _),
+        ):
+            yield read, write
+    else:
+        async with _streamable_http(
+            target.raw, headers=target.headers or None, timeout=timeout
+        ) as (read, write, _):
+            yield read, write
