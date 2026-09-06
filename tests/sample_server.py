@@ -2,7 +2,7 @@
 
 Run it directly to talk to it over stdio::
 
-    mcp-probe list "python tests/sample_server.py"
+    mcpcurl list "python tests/sample_server.py"
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ def undocumented(x: int) -> int:
 @mcp.resource("info://about")
 def about() -> str:
     """Static description of this server."""
-    return "sample server for mcp-probe"
+    return "sample server for mcpcurl"
 
 
 @mcp.resource("greeting://{name}")

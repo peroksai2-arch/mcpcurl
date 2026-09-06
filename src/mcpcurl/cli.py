@@ -1,4 +1,4 @@
-"""Command line entry point: ``mcp-probe list|call|read|prompt|test|docs``."""
+"""Command line entry point: ``mcpcurl list|call|read|prompt|test|docs``."""
 
 from __future__ import annotations
 

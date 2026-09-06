@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from mcp_probe import Target, connect, gather
-from mcp_probe.render import schema_summary, to_markdown
+from mcpcurl import Target, connect, gather
+from mcpcurl.render import schema_summary, to_markdown
 
 
 async def test_gather_lists_everything(server_cmd: str) -> None:

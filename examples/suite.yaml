@@ -1,4 +1,4 @@
-# Run with:  mcp-probe test "python tests/sample_server.py" --suite examples/suite.yaml
+# Run with:  mcpcurl test "python tests/sample_server.py" --suite examples/suite.yaml
 cases:
   - name: adds two numbers
     tool: add

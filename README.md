@@ -1,6 +1,6 @@
-# mcp-probe
+# mcpcurl
 
-[![CI](https://github.com/peroksai2-arch/mcp-probe/actions/workflows/ci.yml/badge.svg)](https://github.com/peroksai2-arch/mcp-probe/actions/workflows/ci.yml)
+[![CI](https://github.com/peroksai2-arch/mcpcurl/actions/workflows/ci.yml/badge.svg)](https://github.com/peroksai2-arch/mcpcurl/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -10,13 +10,13 @@ schema, run a YAML test suite in CI, and generate Markdown docs. Works with
 stdio, Streamable HTTP and SSE servers.
 
 ```bash
-pip install mcp-probe
+pip install mcpcurl
 
-mcp-probe list "npx -y @modelcontextprotocol/server-filesystem /tmp"
-mcp-probe list http://localhost:8000/mcp
-mcp-probe call "python server.py" add -a a=2 -a b=3
-mcp-probe test "python server.py" --suite tests/mcp.yaml     # exit 1 on failure
-mcp-probe docs "python server.py" -o TOOLS.md
+mcpcurl list "npx -y @modelcontextprotocol/server-filesystem /tmp"
+mcpcurl list http://localhost:8000/mcp
+mcpcurl call "python server.py" add -a a=2 -a b=3
+mcpcurl test "python server.py" --suite tests/mcp.yaml     # exit 1 on failure
+mcpcurl docs "python server.py" -o TOOLS.md
 ```
 
 ## Why
@@ -24,7 +24,7 @@ mcp-probe docs "python server.py" -o TOOLS.md
 Developing an MCP server today means restarting an LLM client every time you
 want to know whether your tool shows up, whether its schema is what you think
 it is, or whether it errors. That is slow, and it does not fit in CI.
-`mcp-probe` talks the protocol directly so you can:
+`mcpcurl` talks the protocol directly so you can:
 
 - see the exact tool list, argument signatures and descriptions the model sees
 - call a tool from a shell with typed arguments (`--arg n=3` sends an integer)
@@ -36,7 +36,7 @@ it is, or whether it errors. That is slow, and it does not fit in CI.
 ### `list`
 
 ```
-$ mcp-probe list "python tests/sample_server.py"
+$ mcpcurl list "python tests/sample_server.py"
 sample v1.27.0  protocol 2025-11-25
 A toy server with one of everything.
 
@@ -58,8 +58,8 @@ complete descriptions.
 ### `call`
 
 ```bash
-mcp-probe call "python server.py" echo -a text=hi -a upper=true
-mcp-probe call "python server.py" search -j '{"query": "mcp", "limit": 5}'
+mcpcurl call "python server.py" echo -a text=hi -a upper=true
+mcpcurl call "python server.py" search -j '{"query": "mcp", "limit": 5}'
 ```
 
 Values passed with `--arg` are parsed as JSON when possible, so `n=3` is an
@@ -93,7 +93,7 @@ cases:
 ```
 
 ```
-$ mcp-probe test "python server.py" --suite tests/mcp.yaml
+$ mcpcurl test "python server.py" --suite tests/mcp.yaml
 ┏━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃    ┃ check                                ┃      ms ┃ detail                              ┃
 ┡━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
@@ -131,7 +131,7 @@ publish it; regenerate in CI to catch drift.
 
 ### `read` and `prompt`
 
-`mcp-probe read TARGET uri` prints a resource. `mcp-probe prompt TARGET name -a k=v`
+`mcpcurl read TARGET uri` prints a resource. `mcpcurl prompt TARGET name -a k=v`
 renders a prompt's messages.
 
 ## Targets and transports
@@ -149,14 +149,14 @@ servers. `--cwd` sets the working directory of a stdio server.
 ## GitHub Actions
 
 ```yaml
-- run: pip install mcp-probe
-- run: mcp-probe test "python server.py" --suite tests/mcp.yaml
+- run: pip install mcpcurl
+- run: mcpcurl test "python server.py" --suite tests/mcp.yaml
 ```
 
 ## Python API
 
 ```python
-from mcp_probe import Target, connect, gather, run_suite, Suite
+from mcpcurl import Target, connect, gather, run_suite, Suite
 
 async with connect(Target("python server.py")) as conn:
     inventory = await gather(conn)

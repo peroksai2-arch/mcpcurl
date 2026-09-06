@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from mcp_probe import Suite, Target, connect, gather, run_suite, smoke_checks
-from mcp_probe.suite import coerce_args, parse_cli_value
+from mcpcurl import Suite, Target, connect, gather, run_suite, smoke_checks
+from mcpcurl.suite import coerce_args, parse_cli_value
 
 
 async def test_smoke_checks_flag_missing_description(server_cmd: str) -> None:

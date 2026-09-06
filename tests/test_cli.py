@@ -5,7 +5,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from mcp_probe.cli import app
+from mcpcurl.cli import app
 
 runner = CliRunner()
 
