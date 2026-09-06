@@ -96,3 +96,75 @@ def test_docs_to_file(server_cmd: str, tmp_path: Path) -> None:
 def test_bad_command_exits_2() -> None:
     result = runner.invoke(app, ["list", "definitely-not-a-real-binary-xyz"])
     assert result.exit_code == 2
+
+
+
+def test_bearer_env_fallback(monkeypatch) -> None:
+    from mcpcurl.cli import _target
+
+    monkeypatch.setenv("MCPCURL_BEARER", "from-env")
+    target = _target("https://example.com/mcp", "auto", None, None, None)
+
+    assert target.headers["Authorization"] == "Bearer from-env"
+
+
+def test_explicit_authorization_header_beats_env(monkeypatch) -> None:
+    from mcpcurl.cli import _target
+
+    monkeypatch.setenv("MCPCURL_BEARER", "from-env")
+    target = _target(
+        "https://example.com/mcp",
+        "auto",
+        ["Authorization=Custom token"],
+        None,
+        None,
+    )
+
+    assert target.headers["Authorization"] == "Custom token"
+
+
+def test_bearer_option_beats_authorization_header(monkeypatch) -> None:
+    from mcpcurl.cli import _target
+
+    monkeypatch.setenv("MCPCURL_BEARER", "from-env")
+    target = _target(
+        "https://example.com/mcp",
+        "auto",
+        ["Authorization=Custom token"],
+        None,
+        None,
+        "explicit",
+    )
+
+    assert target.headers["Authorization"] == "Bearer explicit"
+
+
+
+def test_lowercase_authorization_header_beats_env(monkeypatch) -> None:
+    from mcpcurl.cli import _target
+
+    monkeypatch.setenv("MCPCURL_BEARER", "from-env")
+    target = _target(
+        "https://example.com/mcp",
+        "auto",
+        ["authorization=Custom token"],
+        None,
+        None,
+    )
+
+    assert target.headers == {"authorization": "Custom token"}
+
+
+def test_bearer_option_replaces_lowercase_authorization(monkeypatch) -> None:
+    from mcpcurl.cli import _target
+
+    target = _target(
+        "https://example.com/mcp",
+        "auto",
+        ["authorization=Custom token"],
+        None,
+        None,
+        "explicit",
+    )
+
+    assert target.headers == {"Authorization": "Bearer explicit"}

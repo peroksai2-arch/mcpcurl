@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Annotated, Any
@@ -39,6 +40,9 @@ TransportOpt = Annotated[
 HeaderOpt = Annotated[
     list[str] | None, typer.Option("--header", "-H", help="HTTP header KEY=VALUE (repeatable)")
 ]
+BearerOpt = Annotated[
+    str | None, typer.Option("--bearer", help="Bearer token for HTTP Authorization")
+]
 EnvOpt = Annotated[
     list[str] | None, typer.Option("--env", "-e", help="Env var KEY=VALUE for stdio servers")
 ]
@@ -53,14 +57,29 @@ def _target(
     headers: list[str] | None,
     env: list[str] | None,
     cwd: str | None,
+    bearer: str | None = None,
 ) -> Target:
     if transport not in ("auto", "stdio", "http", "sse"):
         raise typer.BadParameter("transport must be auto, stdio, http or sse")
     try:
+        parsed_headers = parse_kv(headers or [], what="--header")
+        authorization_key = next(
+            (key for key in parsed_headers if key.lower() == "authorization"), None
+        )
+
+        if bearer is not None:
+            if authorization_key is not None:
+                del parsed_headers[authorization_key]
+            parsed_headers["Authorization"] = f"Bearer {bearer}"
+        elif authorization_key is None:
+            env_bearer = os.environ.get("MCPCURL_BEARER")
+            if env_bearer is not None:
+                parsed_headers["Authorization"] = f"Bearer {env_bearer}"
+
         return Target(
             raw=raw,
             transport=transport,  # type: ignore[arg-type]
-            headers=parse_kv(headers or [], what="--header"),
+            headers=parsed_headers,
             env=parse_kv(env or [], what="--env"),
             cwd=cwd,
         )
@@ -84,6 +103,7 @@ def list_cmd(
     target: TargetArg,
     transport: TransportOpt = "auto",
     header: HeaderOpt = None,
+    bearer: BearerOpt = None,
     env: EnvOpt = None,
     cwd: CwdOpt = None,
     timeout: TimeoutOpt = 30.0,
@@ -93,7 +113,9 @@ def list_cmd(
     """List tools, resources and prompts the server advertises."""
 
     async def go() -> None:
-        async with connect(_target(target, transport, header, env, cwd), timeout=timeout) as c:
+        async with connect(
+            _target(target, transport, header, env, cwd, bearer), timeout=timeout
+        ) as c:
             inv = await gather(c)
         if as_json:
             print(json.dumps(inv.to_dict(), indent=2, default=str))
@@ -119,6 +141,7 @@ def call(
     ] = True,
     transport: TransportOpt = "auto",
     header: HeaderOpt = None,
+    bearer: BearerOpt = None,
     env: EnvOpt = None,
     cwd: CwdOpt = None,
     timeout: TimeoutOpt = 30.0,
@@ -138,7 +161,9 @@ def call(
         args[key] = parse_cli_value(value)
 
     async def go() -> int:
-        async with connect(_target(target, transport, header, env, cwd), timeout=timeout) as c:
+        async with connect(
+            _target(target, transport, header, env, cwd, bearer), timeout=timeout
+        ) as c:
             if validate:
                 inv = await gather(c)
                 spec = inv.tool(tool)
@@ -175,6 +200,7 @@ def read(
     uri: Annotated[str, typer.Argument(help="Resource URI", show_default=False)],
     transport: TransportOpt = "auto",
     header: HeaderOpt = None,
+    bearer: BearerOpt = None,
     env: EnvOpt = None,
     cwd: CwdOpt = None,
     timeout: TimeoutOpt = 30.0,
@@ -182,7 +208,9 @@ def read(
     """Read a resource and print its contents."""
 
     async def go() -> None:
-        async with connect(_target(target, transport, header, env, cwd), timeout=timeout) as c:
+        async with connect(
+            _target(target, transport, header, env, cwd, bearer), timeout=timeout
+        ) as c:
             res = await c.session.read_resource(resource_uri(uri))
         for content in res.contents:
             text = getattr(content, "text", None)
@@ -203,6 +231,7 @@ def prompt(
     arg: Annotated[list[str] | None, typer.Option("--arg", "-a", help="Argument KEY=VALUE")] = None,
     transport: TransportOpt = "auto",
     header: HeaderOpt = None,
+    bearer: BearerOpt = None,
     env: EnvOpt = None,
     cwd: CwdOpt = None,
     timeout: TimeoutOpt = 30.0,
@@ -211,7 +240,9 @@ def prompt(
     args = parse_kv(arg or [], what="--arg")
 
     async def go() -> None:
-        async with connect(_target(target, transport, header, env, cwd), timeout=timeout) as c:
+        async with connect(
+            _target(target, transport, header, env, cwd, bearer), timeout=timeout
+        ) as c:
             res = await c.session.get_prompt(name, args)
         for m in res.messages:
             text = getattr(m.content, "text", "<non-text content>")
@@ -232,6 +263,7 @@ def test(
     ] = True,
     transport: TransportOpt = "auto",
     header: HeaderOpt = None,
+    bearer: BearerOpt = None,
     env: EnvOpt = None,
     cwd: CwdOpt = None,
     timeout: TimeoutOpt = 30.0,
@@ -241,7 +273,9 @@ def test(
     loaded = Suite.load(suite) if suite else None
 
     async def go() -> list[Any]:
-        async with connect(_target(target, transport, header, env, cwd), timeout=timeout) as c:
+        async with connect(
+            _target(target, transport, header, env, cwd, bearer), timeout=timeout
+        ) as c:
             return await run_suite(c, loaded, smoke=smoke, validate_args=validate)
 
     results = _run(go())
@@ -273,6 +307,7 @@ def docs(
     ] = None,
     transport: TransportOpt = "auto",
     header: HeaderOpt = None,
+    bearer: BearerOpt = None,
     env: EnvOpt = None,
     cwd: CwdOpt = None,
     timeout: TimeoutOpt = 30.0,
@@ -280,7 +315,9 @@ def docs(
     """Generate Markdown reference docs for the server's tools, resources and prompts."""
 
     async def go() -> str:
-        async with connect(_target(target, transport, header, env, cwd), timeout=timeout) as c:
+        async with connect(
+            _target(target, transport, header, env, cwd, bearer), timeout=timeout
+        ) as c:
             return to_markdown(await gather(c))
 
     md = _run(go())
