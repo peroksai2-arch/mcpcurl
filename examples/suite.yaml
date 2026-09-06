@@ -1,0 +1,32 @@
+# Run with:  mcp-probe test "python tests/sample_server.py" --suite examples/suite.yaml
+cases:
+  - name: adds two numbers
+    tool: add
+    args: { a: 2, b: 3 }
+    expect:
+      equals: 5
+      max_ms: 500
+
+  - name: echo can upper-case
+    tool: echo
+    args: { text: hello, upper: true }
+    expect:
+      equals: HELLO
+
+  - name: server-side failures are surfaced as errors
+    tool: fail
+    args: { message: expected failure }
+    expect:
+      error: true
+      text_contains: expected failure
+
+  - name: resource template resolves
+    resource: "greeting://world"
+    expect:
+      text_contains: "Hello, world"
+
+  - name: prompt renders its argument
+    prompt: summarize
+    args: { topic: probes }
+    expect:
+      text_contains: probes
